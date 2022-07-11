@@ -2,7 +2,7 @@ package ch.oliumbi.sqllib;
 
 import java.sql.*;
 
-public class SQL<T> {
+public class Testing<T> {
 
     private static Connection connection;
 

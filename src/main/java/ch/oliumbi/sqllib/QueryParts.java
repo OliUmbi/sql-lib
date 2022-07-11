@@ -5,12 +5,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class TestDTO {
-    private int id;
-    private String name;
-    private String password;
+public class QueryParts {
+    private String query;
+    private List<String> fields;
 }

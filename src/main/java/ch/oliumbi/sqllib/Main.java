@@ -1,16 +1,44 @@
 package ch.oliumbi.sqllib;
 
-import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-//        ResultSet resultSet = SQL.select("Select * from user");
-//
-//        System.out.println(resultSet.toString());
 
-        ResultHandler resultHandler = new ResultHandler();
+        try {
+            Sql sql = new Sql("jdbc:mysql://localhost:3306/ocontrol", "root", "root");
 
-        resultHandler.handle(new TestDTO());
+
+//            TestDTO testDTO = new TestDTO();
+//            sql.select("" +
+//                            "SELECT name " +
+//                            "FROM   user " +
+//                            "INTO   :text,",
+//                    testDTO);
+
+            List<TestDTO> testDTOs = new ArrayList<>();
+            sql.select("" +
+                            "SELECT id, " +
+                            "       name," +
+                            "       password " +
+                            "FROM   user " +
+                            "INTO   :id, " +
+                            "       :password ",
+                    testDTOs,
+                    TestDTO.class);
+
+            System.out.println(testDTOs);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+
+//        int count = sql.insert("" +
+//                "INSERT INTO user(name) " +
+//                "VALUES :text ",
+//                testDTO);
 
 
         /**
