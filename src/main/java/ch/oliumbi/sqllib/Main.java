@@ -100,5 +100,11 @@ public class Main {
                     searchValues);
             System.out.println(count);
 
+            /**
+             * Possible improvements:
+             * - optimize update so where is not in same dto (not urgent)
+             * - refactoring
+             */
+
     }
 }
