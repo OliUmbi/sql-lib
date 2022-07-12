@@ -104,6 +104,7 @@ public class Main {
              * Possible improvements:
              * - optimize update so where is not in same dto (not urgent)
              * - refactoring
+             * - better exception messages
              */
 
     }
