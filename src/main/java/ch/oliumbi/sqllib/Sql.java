@@ -1,112 +1,151 @@
 package ch.oliumbi.sqllib;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
+import java.sql.*;
 import java.util.List;
-import java.lang.reflect.ParameterizedType;
 
 public class Sql {
 
     private final Connection connection;
+    private final QueryParser queryParser = new QueryParser();
 
     public Sql(String url, String user, String password) throws SQLException {
         connection = DriverManager.getConnection(url, user, password);
     }
 
-    public void select(String query, Object object) {
+    public void select(String query, Object output) {
         try {
-            QueryParts queryParts = parseQuery(query);
+            List<String> binds = queryParser.findBinds(query);
+            query = queryParser.removeInto(query);
 
-            ResultSet resultSet = executeQuery(queryParts.getQuery());
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            ResultSet resultSet = preparedStatement.executeQuery();
 
-            mapResultSet(resultSet, queryParts.getFields(), object);
+            if (!resultSet.next()) {
+                return;
+            }
+
+            SQLHelper.mapResultSet(resultSet, output, binds);
 
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException("Failed to executed SQL: " + e.getMessage());
         }
     }
 
-    public void select(String query, List list, Class<?> clazz) {
+    public void select(String query, Object output, Object input) {
         try {
-            QueryParts queryParts = parseQuery(query);
+            List<String> binds = queryParser.findBinds(query);
+            List<String> inputs = queryParser.findInputs(query);
+            query = queryParser.replaceInputs(query, inputs);
+            query = queryParser.removeInto(query);
 
-            ResultSet resultSet = executeQuery(queryParts.getQuery());
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            SQLHelper.mapPreparedStatement(preparedStatement, input, inputs);
+            ResultSet resultSet = preparedStatement.executeQuery();
+
+            if (!resultSet.next()) {
+                return;
+            }
+
+            SQLHelper.mapResultSet(resultSet, output, binds);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to executed SQL: " + e.getMessage());
+        }
+    }
+
+    public void select(String query, List output, Class<?> clazz) {
+        try {
+            List<String> binds = queryParser.findBinds(query);
+            query = queryParser.removeInto(query);
+
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            ResultSet resultSet = preparedStatement.executeQuery();
+
+            if (!resultSet.next()) {
+                return;
+            }
 
             do {
                 Constructor<?> constructor = clazz.getConstructor();
                 Object object = constructor.newInstance();
 
-                mapResultSet(resultSet, queryParts.getFields(), object);
+                SQLHelper.mapResultSet(resultSet, object, binds);
 
-                list.add(object);
+                output.add(object);
             } while (resultSet.next());
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException("Failed to executed SQL: " + e.getMessage());
         }
     }
 
-    private QueryParts parseQuery(String query) {
-        int intoIndex = query.toLowerCase().indexOf("into");
-        String queryBlock = query.substring(0, intoIndex);
-        String intoBlock = query.substring(intoIndex);
-        List<String> fields = new ArrayList<>();
+    public void select(String query, List output, Class<?> clazz, Object input) {
+        try {
+            List<String> binds = queryParser.findBinds(query);
+            List<String> inputs = queryParser.findInputs(query);
+            query = queryParser.replaceInputs(query, inputs);
+            query = queryParser.removeInto(query);
 
-        while (true) {
-            int colonIndex = intoBlock.indexOf(":");
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            SQLHelper.mapPreparedStatement(preparedStatement, input, inputs);
+            ResultSet resultSet = preparedStatement.executeQuery();
 
-            if (colonIndex == -1) {
-                break;
+            if (!resultSet.next()) {
+                return;
             }
 
-            int spaceIndex = intoBlock.indexOf(" ", colonIndex);
+            do {
+                Constructor<?> constructor = clazz.getConstructor();
+                Object object = constructor.newInstance();
 
-            if (spaceIndex == -1) {
-                fields.add(intoBlock.substring((colonIndex + 1)).replace(",", ""));
-                break;
-            }
+                SQLHelper.mapResultSet(resultSet, object, binds);
 
-            fields.add(intoBlock.substring((colonIndex + 1), spaceIndex).replace(",", ""));
-
-            intoBlock = intoBlock.replaceFirst(":", "");
+                output.add(object);
+            } while (resultSet.next());
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to executed SQL: " + e.getMessage());
         }
-
-        return new QueryParts(queryBlock, fields);
     }
 
-    private ResultSet executeQuery(String query) throws RuntimeException, SQLException {
-        ResultSet resultSet = connection.prepareStatement(query).executeQuery();
+    public int insert(String query, Object input) {
+        try {
+            List<String> inputs = queryParser.findInputs(query);
+            query = queryParser.replaceInputs(query, inputs);
 
-        if (!resultSet.next()) {
-            throw new RuntimeException("No columns");
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            SQLHelper.mapPreparedStatement(preparedStatement, input, inputs);
+
+            return preparedStatement.executeUpdate();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to executed SQL: " + e.getMessage());
         }
-
-        return resultSet;
     }
 
-    private void mapResultSet(ResultSet resultSet, List<String> fields, Object object) throws NoSuchFieldException, NoSuchMethodException, SQLException, InvocationTargetException, IllegalAccessException {
-        for (int i = 0; i < fields.size(); i++) {
-            String field = fields.get(i);
+    public int update(String query, Object input) {
+        try {
+            List<String> inputs = queryParser.findInputs(query);
+            query = queryParser.replaceInputs(query, inputs);
 
-            String capitalizedField = field.substring(0, 1).toUpperCase() + field.substring(1);
-            Method method = object.getClass()
-                    .getDeclaredMethod(
-                            "set" + capitalizedField,
-                            object.getClass().getDeclaredField(field).getType()
-                    );
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            SQLHelper.mapPreparedStatement(preparedStatement, input, inputs);
 
-            method.invoke(
-                    object,
-                    resultSet.getObject(
-                            (i + 1),
-                            object.getClass().getDeclaredField(field).getType()
-                    )
-            );
+            return preparedStatement.executeUpdate();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to executed SQL: " + e.getMessage());
+        }
+    }
+
+    public int delete(String query, Object input) {
+        try {
+            List<String> inputs = queryParser.findInputs(query);
+            query = queryParser.replaceInputs(query, inputs);
+
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            SQLHelper.mapPreparedStatement(preparedStatement, input, inputs);
+
+            return preparedStatement.executeUpdate();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to executed SQL: " + e.getMessage());
         }
     }
 }

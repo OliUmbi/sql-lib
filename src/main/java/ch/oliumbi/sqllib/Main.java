@@ -5,62 +5,100 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Main {
-    public static void main(String[] args) {
 
-        try {
+    public static void main(String[] args) throws SQLException {
             Sql sql = new Sql("jdbc:mysql://localhost:3306/ocontrol", "root", "root");
 
+            QueryParts searchValues = new QueryParts("bachofner", new ArrayList<>());
+            TestDTO outputTestDTO = new TestDTO();
+            List<TestDTO> outputTestDTOs = new ArrayList<>();
 
-//            TestDTO testDTO = new TestDTO();
-//            sql.select("" +
-//                            "SELECT name " +
-//                            "FROM   user " +
-//                            "INTO   :text,",
-//                    testDTO);
-
-            List<TestDTO> testDTOs = new ArrayList<>();
+            // select
             sql.select("" +
                             "SELECT id, " +
-                            "       name," +
+                            "       name, " +
                             "       password " +
                             "FROM   user " +
                             "INTO   :id, " +
+                            "       :name, " +
+                            "       :password",
+                    outputTestDTO);
+
+            System.out.println(outputTestDTO);
+            outputTestDTO = new TestDTO();
+
+            sql.select("" +
+                            "SELECT id, " +
+                            "       name, " +
+                            "       password " +
+                            "FROM   user " +
+                            "WHERE  name = -query " +
+                            "INTO   :id, " +
+                            "       :name, " +
                             "       :password ",
-                    testDTOs,
+                    outputTestDTO,
+                    searchValues);
+
+            System.out.println(outputTestDTO);
+
+            sql.select("" +
+                            "SELECT id, " +
+                            "       name, " +
+                            "       password " +
+                            "FROM   user " +
+                            "INTO   :id, " +
+                            "       :name, " +
+                            "       :password",
+                    outputTestDTOs,
                     TestDTO.class);
 
-            System.out.println(testDTOs);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+            System.out.println(outputTestDTOs);
+            outputTestDTOs = new ArrayList<>();
 
+            sql.select("" +
+                            "SELECT id, " +
+                            "       name, " +
+                            "       password " +
+                            "FROM   user " +
+                            "WHERE  name = -query " +
+                            "INTO   :id, " +
+                            "       :name, " +
+                            "       :password",
+                    outputTestDTOs,
+                    TestDTO.class,
+                    searchValues);
 
-//        int count = sql.insert("" +
-//                "INSERT INTO user(name) " +
-//                "VALUES :text ",
-//                testDTO);
+            System.out.println(outputTestDTOs);
 
+            // insert
+            TestDTO inputTestDTO = new TestDTO(0, "username3", "password3");
+            int count = sql.insert("" +
+                            "INSERT INTO user (" +
+                            "   name, " +
+                            "   password) " +
+                            "VALUES (" +
+                            "   -name, " +
+                            "   -password)",
+                    inputTestDTO);
+            System.out.println(count);
 
-        /**
-         * Ideas:
-         *
-         * something like SQL from scout where you define the results (maybe directly using lib from scout)
-         * advantage mor control over results
-         * disadvantage complicated, string parsing, time intensive
-         *
-         * sql maps all dto fields directly
-         * advantage easy to use, others have done this
-         * disadvantage boilerplate, edge cases lists
-         *
-         * something new from both worlds
-         * define sql with fields you want to parse in.
-         * list are handled by the amount of results or defined beforehand via function name
-         * SQL.select("query with :yeet", Yeet.class)
-         *
-         * general problems:
-         * id (bin): could be resolved in sql query
-         * lists
-         *
-         */
+            // update
+            inputTestDTO = new TestDTO(15, "usernameEdit", "passwordEdit");
+            count = sql.insert("" +
+                            "UPDATE user " +
+                            "SET    name = -name, " +
+                            "       password = -password " +
+                            "WHERE  id = -id ",
+                    inputTestDTO);
+            System.out.println(count);
+
+            // delete
+            searchValues = new QueryParts("eriic", new ArrayList<>());
+            count = sql.delete("" +
+                    "DELETE FROM user " +
+                    "WHERE  name = -query",
+                    searchValues);
+            System.out.println(count);
+
     }
 }

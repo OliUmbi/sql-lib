@@ -13,4 +13,9 @@ public class TestDTO {
     private int id;
     private String name;
     private String password;
+
+    @Override
+    public String toString() {
+        return "TestDTO [" + id + " | "  + name + " | " + password + "]";
+    }
 }
